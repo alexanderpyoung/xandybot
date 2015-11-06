@@ -34,7 +34,6 @@ def check_creds():
             print("Try again. Get verifier from: " + redirect_url)
             check_creds()
 
-
 def load_tweets():
     with open("/home/ebooks/tweets.csv", newline='') as csv_file:
         reader = csv.DictReader(csv_file)
@@ -61,27 +60,46 @@ def generate_dictionary(triplet_generator):
             return_dictionary[key].append(value)
     return return_dictionary
 
-def generate_message(dictionary, triplets):
-    message_length = 20
-    # select a random starting word and succession word
-    random_trip = random.randint(0, len(triplets))
+def filter(word):
+    if not "@" in word and not word.startswith("http:") \
+        and not word.startswith("https:") and not word.startswith("#") \
+        and not word.startswith("RT") and word is not None:
+        return True
+    else:
+        return False        
+
+def get_two_words(triplets):
+    random_trip = random.randint(0, len(triplets) - 1)
     random_word = random.randint(0, 1)
     initial = triplets[random_trip][random_word]
     second = triplets[random_trip][random_word + 1]
-    chosen_array = []
+    if filter(initial) and filter(second):
+        return (initial, second)
+    else:
+        return get_two_words(triplets)
+
+def get_next_word(initial, second, dictionary, triplets):
+    next_dict = [word for word in dictionary[(initial, second)] if filter(word)]
+    if len(next_dict) > 0:
+        next_word = next_dict[random.randint(0, 
+            len(next_dict) - 1)]
+        return next_word
+    else:
+        newi, news = get_two_words(triplets)
+        return get_next_word(newi, news, dictionary, triplets)
+
+def generate_message(dictionary, triplets):
+    message_length = 20
+    # select a random starting word and succession word
+    initial, second = get_two_words(triplets)
+    chosen_array = [initial, second]
     for i in range(message_length):
         try:
-            next_word = dictionary[(initial, second)][random.randint(0, len(dictionary[(initial, second)]) - 1 )]
-            if not "@" in next_word and not next_word.startswith("http:") \
-                    and not next_word.startswith("https:") and not next_word.startswith("#") \
-                    and not next_word.startswith("RT"): 
-                chosen_array.append(next_word)
-                initial, second = second, next_word
-            else:
-                continue
-        except KeyError as e:
-            print(e.args)
-            continue
+            next_word = get_next_word(initial, second, dictionary, triplets)
+            chosen_array.append(next_word)
+            initial, second = second, next_word
+        except KeyError:
+            break
     return ' '.join(chosen_array)
 
 if __name__ == "__main__":
@@ -91,8 +109,9 @@ if __name__ == "__main__":
     dictionary = generate_dictionary(generator)
     while True:
         message = generate_message(dictionary, generator)
+#        print(message)
         try:
             api.update_status(status=message)
             time.sleep(600)
         except tweepy.error.TweepError as e:
-            print(e.reason)
+            print(str(e.response))
