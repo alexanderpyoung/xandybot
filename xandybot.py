@@ -6,7 +6,7 @@ import time
 
 def check_creds():
     try:
-        cred_file = open("/home/ebooks/cred.json")
+        cred_file = open("cred.json")
         cred_data = json.load(cred_file)
         auth = tweepy.OAuthHandler(cred_data['consumer_token'],
             cred_data['consumer_secret'])
@@ -23,7 +23,7 @@ def check_creds():
         verifier = input("Input verifier: ")
         try:
             auth.get_access_token(verifier)
-            cred_file = open("/home/ebooks/cred.json", 'w')
+            cred_file = open("cred.json", 'w')
             json.dump({'consumer_token': consumer_token, 
                 'consumer_secret' : consumer_secret,
                 'access_token' : auth.access_token, 
@@ -35,19 +35,14 @@ def check_creds():
             check_creds()
 
 def load_tweets():
-    with open("/home/ebooks/tweets.csv", newline='') as csv_file:
+    with open("tweets.csv", newline='') as csv_file:
         reader = csv.DictReader(csv_file)
         words = [line['text'] for line in reader]
-    return ' '.join(words)
+    return ' '.join(words).split()
 
-def generate_triplets(tweet_array):
-    triplets = []
-    words = tweet_array.split()
-    for i in range(len(words) - 3):
-        triplets.append((words[i], words[i+1], words[i+2]))
-    return triplets
-    #    for i in range(0, len(words) - 2):
-    #        yield (words[i], words[i+1], words[i+2])
+def generate_triplets(words):
+    for i in range(len(words) - 2):
+      yield (words[i], words[i+1], words[i+2])
 
 def generate_dictionary(triplet_generator):
     return_dictionary = {}
@@ -69,33 +64,33 @@ def filter(word):
         return False        
 
 def get_two_words(triplets):
-    random_trip = random.randint(0, len(triplets) - 1)
-    random_word = random.randint(0, 1)
-    initial = triplets[random_trip][random_word]
-    second = triplets[random_trip][random_word + 1]
+    keys = list(triplets.keys())
+    random_trip = random.choice(keys)
+    initial = random_trip[0]
+    second = random_trip[1]
     if filter(initial) and filter(second):
         return (initial, second)
     else:
         return get_two_words(triplets)
 
-def get_next_word(initial, second, dictionary, triplets):
+def get_next_word(initial, second, dictionary):
     next_dict = [word for word in dictionary[(initial, second)] if filter(word)]
     if len(next_dict) > 0:
         next_word = next_dict[random.randint(0, 
             len(next_dict) - 1)]
         return next_word
     else:
-        newi, news = get_two_words(triplets)
-        return get_next_word(newi, news, dictionary, triplets)
+        newi, news = get_two_words(dictionary)
+        return get_next_word(newi, news, dictionary)
 
-def generate_message(dictionary, triplets):
+def generate_message(dictionary):
     message_length = 20
     # select a random starting word and succession word
-    initial, second = get_two_words(triplets)
+    initial, second = get_two_words(dictionary)
     chosen_array = [initial, second]
     for i in range(message_length):
         try:
-            next_word = get_next_word(initial, second, dictionary, triplets)
+            next_word = get_next_word(initial, second, dictionary)
             chosen_array.append(next_word)
             initial, second = second, next_word
         except KeyError:
@@ -108,7 +103,7 @@ if __name__ == "__main__":
     generator = generate_triplets(load_tweets())
     dictionary = generate_dictionary(generator)
     while True:
-        message = generate_message(dictionary, generator)
+        message = generate_message(dictionary)
 #        print(message)
         try:
             api.update_status(status=message)
