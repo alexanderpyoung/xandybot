@@ -79,9 +79,6 @@ def get_next_word(initial, second, dictionary):
         next_word = next_dict[random.randint(0, 
             len(next_dict) - 1)]
         return next_word
-    else:
-        newi, news = get_two_words(dictionary)
-        return get_next_word(newi, news, dictionary)
 
 def generate_message(dictionary):
     message_length = 20
@@ -91,8 +88,11 @@ def generate_message(dictionary):
     for i in range(message_length):
         try:
             next_word = get_next_word(initial, second, dictionary)
-            chosen_array.append(next_word)
-            initial, second = second, next_word
+            if next_word is not None:
+                chosen_array.append(next_word)
+                initial, second = second, next_word
+            else:
+                break
         except KeyError:
             break
     return ' '.join(chosen_array)
