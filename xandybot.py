@@ -37,7 +37,7 @@ def check_creds():
 def load_tweets():
     with open("tweets.csv", newline='') as csv_file:
         reader = csv.DictReader(csv_file)
-        words = [line['text'] for line in reader]
+        words = [line['text'] for line in reader if not line['text'].startswith("RT")]
     return ' '.join(words).split()
 
 def generate_triplets(words):
